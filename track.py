@@ -20,6 +20,11 @@ import cv2
 import torch
 import torch.backends.cudnn as cudnn
 
+def load_classes(path):
+    # Loads *.names file at 'path'
+    with open(path, 'r') as f:
+        names = f.read().split('\n')
+    return list(filter(None, names)) 
 
 def compute_color_for_id(label):
     """
@@ -32,9 +37,9 @@ def compute_color_for_id(label):
 
 
 def detect(opt):
-    out, source, yolo_cfg,yolo_weights, deep_sort_weights, show_vid, save_vid, save_txt, imgsz, evaluate = \
+    out, source, yolo_cfg,yolo_weights, deep_sort_weights, show_vid, save_vid, save_txt, imgsz, evaluate,names = \
         opt.output, opt.source, opt.yolo_cfg, opt.yolo_weights, opt.deep_sort_weights, opt.show_vid, opt.save_vid, \
-            opt.save_txt, opt.img_size, opt.evaluate
+            opt.save_txt, opt.img_size, opt.evaluate, opt.names
     webcam = source == '0' or source.startswith(
         'rtsp') or source.startswith('http') or source.endswith('.txt')
 
@@ -63,10 +68,11 @@ def detect(opt):
     # Load model
     # model = attempt_load(yolo_weights, map_location=device)  # load FP32 model
     model = Darknet(yolo_cfg, imgsz).cuda()
-    model.load_state_dict(torch.load(yolo_weights[0], map_location=device)['model'])
-    stride = int(model.stride.max())  # model stride
-    imgsz = check_img_size(imgsz, s=stride)  # check img_size
-    names = model.module.names if hasattr(model, 'module') else model.names  # get class names
+    model.load_state_dict(torch.load(yolo_weights, map_location=device)['model'])
+    # stride = int(model.stride.max())  # model stride
+    # imgsz = check_img_size(imgsz, s=stride)  # check img_size
+    # names = model.module.names if hasattr(model, 'module') else model.names  # get class names
+    model.to(device).eval()
     if half:
         model.half()  # to FP16
 
@@ -83,12 +89,21 @@ def detect(opt):
         dataset = LoadImages(source, img_size=imgsz)
 
     # Get names and colors
-    names = model.module.names if hasattr(model, 'module') else model.names
+    names = load_classes(names)
+    color = [[random.randint(0, 255) for _ in range(3)] for _ in range(len(names))]
 
     # Run inference
-    if device.type != 'cpu':
-        model(torch.zeros(1, 3, imgsz, imgsz).to(device).type_as(next(model.parameters())))  # run once
     t0 = time.time()
+    img = torch.zeros((1, 3, imgsz, imgsz), device=device)  # init img
+    _ = model(img.half() if half else img) if device.type != 'cpu' else None  # run once
+   
+#    # Get names and colors
+#     names = model.module.names if hasattr(model, 'module') else model.names
+
+#     # Run inference
+#     if device.type != 'cpu':
+#         model(torch.zeros(1, 3, imgsz, imgsz).to(device).type_as(next(model.parameters())))  # run once
+#     t0 = time.time()
 
     save_path = str(Path(out))
     # extract what is in between the last '/' and last '.'
@@ -152,7 +167,7 @@ def detect(opt):
                         plot_one_box(bboxes, im0, label=label, color=color, line_thickness=2)
                         
                         # print FPS
-                        cv2.putText(im0, "FPS="+str(int(1/(t2-t1))), (0,25), cv2.FONT_HERSHEY_COMPLEX, 1, (0,0,255), 2)
+                        #cv2.putText(im0, "FPS="+str(int(1/(t2-t1))), (0,25), cv2.FONT_HERSHEY_COMPLEX, 1, (0,0,255), 2)
 
                         if save_txt:
                             # to MOT format
@@ -165,8 +180,8 @@ def detect(opt):
                                f.write(('%g ' * 10 + '\n') % (frame_idx, id, bbox_top,
                                                            bbox_left, bbox_w, bbox_h, -1, -1, -1, -1))  # label format
 
-            else:
-                deepsort.increment_ages()
+            #else:
+            #    deepsort.increment_ages()
 
             # Print time (inference + NMS)
             print('%sDone. (%.3fs)' % (s, t2 - t1))
@@ -224,7 +239,8 @@ if __name__ == '__main__':
     parser.add_argument('--agnostic-nms', action='store_true', help='class-agnostic NMS')
     parser.add_argument('--augment', action='store_true', help='augmented inference')
     parser.add_argument('--evaluate', action='store_true', help='augmented inference')
-    parser.add_argument("--config_deepsort", type=str, default="deep_sort_pytorch/configs/deep_sort.yaml")
+    parser.add_argument('--config_deepsort', type=str, default='deep_sort_pytorch/configs/deep_sort.yaml')
+    parser.add_argument('--names', type=str, default='yolor/data/coco.names', help='*.cfg path')
     args = parser.parse_args()
     args.img_size = check_img_size(args.img_size)
 
