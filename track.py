@@ -164,7 +164,7 @@ def detect(opt):
                         c = int(cls)  # integer class
                         label = f'{id} {names[c]} {conf:.2f}'
                         color = compute_color_for_id(id)
-                        plot_one_box(bboxes, im0, label=label, color=color, line_thickness=2)
+                        plot_one_box(bboxes, im0, label=label, color=color, line_thickness=1)
                         
                         # print FPS
                         #cv2.putText(im0, "FPS="+str(int(1/(t2-t1))), (0,25), cv2.FONT_HERSHEY_COMPLEX, 1, (0,0,255), 2)
