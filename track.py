@@ -180,8 +180,8 @@ def detect(opt):
                                f.write(('%g ' * 10 + '\n') % (frame_idx, id, bbox_top,
                                                            bbox_left, bbox_w, bbox_h, -1, -1, -1, -1))  # label format
 
-            #else:
-            #    deepsort.increment_ages()
+            else:
+               deepsort.increment_ages()
 
             # Print time (inference + NMS)
             print('%sDone. (%.3fs)' % (s, t2 - t1))

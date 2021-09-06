@@ -55,6 +55,11 @@ class Tracker:
         for track in self.tracks:
             track.predict(self.kf)
 
+    def increment_ages(self):
+        for track in self.tracks:
+            track.increment_age()
+            track.mark_missed()
+
     def update(self, detections, classes):
         """Perform measurement update and track management.
 

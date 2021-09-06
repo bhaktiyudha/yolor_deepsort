@@ -19,7 +19,7 @@ curl -Lb ./cookie "https://drive.google.com/uc?export=download&confirm=`awk '/do
 rm ./cookie
 
 curl -c ./cookie -s -L "https://drive.google.com/uc?export=download&id=1OJKgIasELZYxkIjFoiqyn555bcmixUP2" > /dev/null
-curl -Lb ./cookie "https://drive.google.com/uc?export=download&confirm=`awk '/download/ {print $NF}' ./cookie`&id=1OJKgIasELZYxkIjFoiqyn555bcmixUP2" -o yolor_csp_x.pt
+curl -Lb ./cookie "https://drive.google.com/uc?export=download&confirm=`awk '/download/ {print $NF}' ./cookie`&id=1OJKgIasELZYxkIjFoiqyn555bcmixUP2" -o yolor_csp.pt
 rm ./cookie
 
 curl -c ./cookie -s -L "https://drive.google.com/uc?export=download&id=1lfCXBm5ltH-6CjJ1a5rqiZoWgGmRsZSY" > /dev/null
