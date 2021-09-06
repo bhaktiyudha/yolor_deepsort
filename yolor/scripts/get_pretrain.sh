@@ -22,6 +22,6 @@ curl -c ./cookie -s -L "https://drive.google.com/uc?export=download&id=1OJKgIasE
 curl -Lb ./cookie "https://drive.google.com/uc?export=download&confirm=`awk '/download/ {print $NF}' ./cookie`&id=1OJKgIasELZYxkIjFoiqyn555bcmixUP2" -o yolor_csp.pt
 rm ./cookie
 
-curl -c ./cookie -s -L "https://drive.google.com/uc?export=download&id=1lfCXBm5ltH-6CjJ1a5rqiZoWgGmRsZSY" > /dev/null
-curl -Lb ./cookie "https://drive.google.com/uc?export=download&confirm=`awk '/download/ {print $NF}' ./cookie`&id=1lfCXBm5ltH-6CjJ1a5rqiZoWgGmRsZSY" -o ckpt.t7
+curl -c ./cookie -s -L "https://drive.google.com/uc?export=download&id=1xhG0kRH1EX5B9_Iz8gQJb7UNnn_riXi6" > /dev/null
+curl -Lb ./cookie "https://drive.google.com/uc?export=download&confirm=`awk '/download/ {print $NF}' ./cookie`&id=1xhG0kRH1EX5B9_Iz8gQJb7UNnn_riXi6" -o ckpt.t7
 rm ./cookie
