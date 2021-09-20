@@ -114,14 +114,6 @@ def detect(opt):
     t0 = time.time()
     img = torch.zeros((1, 3, imgsz, imgsz), device=device)  # init img
     _ = model(img.half() if half else img) if device.type != 'cpu' else None  # run once
-   
-#    # Get names and colors
-#     names = model.module.names if hasattr(model, 'module') else model.names
-
-#     # Run inference
-#     if device.type != 'cpu':
-#         model(torch.zeros(1, 3, imgsz, imgsz).to(device).type_as(next(model.parameters())))  # run once
-#     t0 = time.time()
 
     save_path = str(Path(out))
     # extract what is in between the last '/' and last '.'

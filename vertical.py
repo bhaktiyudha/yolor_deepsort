@@ -19,6 +19,24 @@ from pathlib import Path
 import cv2
 import torch
 import torch.backends.cudnn as cudnn
+font_thickness = 1
+font_size = 0.5
+font_color = (255, 255, 255)
+middle_line_position = 600   
+up_line_position = middle_line_position - 25
+down_line_position = middle_line_position + 25
+# List for store vehicle count information
+temp_up_list = []
+temp_down_list = []
+up_list = [0, 0, 0, 0,0,0,0,0]
+down_list = [0, 0, 0, 0,0,0,0,0]
+
+def find_center(x, y, w, h):
+    x1=int(w/2)
+    y1=int(h/2)
+    cx = x+x1
+    cy=y+y1
+    return cx, cy
 
 def load_classes(path):
     # Loads *.names file at 'path'
@@ -46,7 +64,7 @@ def detect(opt):
     # initialize deepsort
     cfg = get_config()
     cfg.merge_from_file(opt.config_deepsort)
-    attempt_download(deep_sort_weights, repo='mikel-brostrom/Yolov5_DeepSort_Pytorch')
+    attempt_download(deep_sort_weights)
     deepsort = DeepSort(cfg.DEEPSORT.REID_CKPT,
                         max_dist=cfg.DEEPSORT.MAX_DIST, min_confidence=cfg.DEEPSORT.MIN_CONFIDENCE,
                         nms_max_overlap=cfg.DEEPSORT.NMS_MAX_OVERLAP, max_iou_distance=cfg.DEEPSORT.MAX_IOU_DISTANCE,
@@ -97,6 +115,13 @@ def detect(opt):
     img = torch.zeros((1, 3, imgsz, imgsz), device=device)  # init img
     _ = model(img.half() if half else img) if device.type != 'cpu' else None  # run once
    
+#    # Get names and colors
+#     names = model.module.names if hasattr(model, 'module') else model.names
+
+#     # Run inference
+#     if device.type != 'cpu':
+#         model(torch.zeros(1, 3, imgsz, imgsz).to(device).type_as(next(model.parameters())))  # run once
+#     t0 = time.time()
 
     save_path = str(Path(out))
     # extract what is in between the last '/' and last '.'
@@ -158,6 +183,31 @@ def detect(opt):
                         label = f'{id} {names[c]} {conf:.2f}'
                         color = compute_color_for_id(id)
                         plot_one_box(bboxes, im0, label=label, color=color, line_thickness=1)
+
+                        ix = int((bboxes[0]+bboxes[2])/2) 
+                        iy = int((bboxes[1]+bboxes[3])/2)
+                        
+                        # # Find the current position of the vehicle
+                        if (ix > up_line_position) and (ix < middle_line_position):
+
+                            if id not in temp_up_list:
+                                temp_up_list.append(id)
+
+                        elif ix < down_line_position and ix > middle_line_position:
+                            if id not in temp_down_list:
+                                temp_down_list.append(id)
+                                
+                        elif ix < up_line_position:
+                            if id in temp_down_list:
+                                temp_down_list.remove(id)
+                                up_list[c] = up_list[c]+1
+
+                        elif ix > down_line_position:
+                            if id in temp_up_list:
+                                temp_up_list.remove(id)
+                                down_list[c] = down_list[c] + 1
+                        # Draw circle in the middle of the rectangle
+                        cv2.circle(im0,(ix,iy), 2, (0, 0, 255), -1)  # end here
                         
                         # print FPS
                         #cv2.putText(im0, "FPS="+str(int(1/(t2-t1))), (0,25), cv2.FONT_HERSHEY_COMPLEX, 1, (0,0,255), 2)
@@ -173,8 +223,8 @@ def detect(opt):
                                f.write(('%g ' * 10 + '\n') % (frame_idx, id, bbox_top,
                                                            bbox_left, bbox_w, bbox_h, -1, -1, -1, -1))  # label format
 
-            else:
-               deepsort.increment_ages()
+            #else:
+            #    deepsort.increment_ages()
 
             # Print time (inference + NMS)
             print('%sDone. (%.3fs)' % (s, t2 - t1))
@@ -184,6 +234,19 @@ def detect(opt):
                 cv2.imshow(p, im0)
                 if cv2.waitKey(1) == ord('q'):  # q to quit
                     raise StopIteration
+            # ih, iw, channels = img.shape
+            cv2.line(im0, (middle_line_position, 0), (middle_line_position, 720), (255, 0, 255), 2)
+            cv2.line(im0, (up_line_position, 0), (up_line_position, 720), (0, 0, 255), 2)
+            cv2.line(im0, (down_line_position, 0), (down_line_position, 720), (0, 0, 255), 2)
+
+            # Draw counting texts in the frame
+            cv2.putText(im0, "To Left", (110, 40), cv2.FONT_HERSHEY_SIMPLEX, font_size, font_color, font_thickness)
+            cv2.putText(im0, "To Right", (160, 40), cv2.FONT_HERSHEY_SIMPLEX, font_size, font_color, font_thickness)
+            cv2.putText(im0, "Car:        "+str(up_list[2])+"     "+ str(down_list[2]), (20, 60), cv2.FONT_HERSHEY_SIMPLEX, font_size, font_color, font_thickness)
+            cv2.putText(im0, "Motorbike:  "+str(up_list[3])+"     "+ str(down_list[3]), (20, 80), cv2.FONT_HERSHEY_SIMPLEX, font_size, font_color, font_thickness)
+            cv2.putText(im0, "Bus:        "+str(up_list[5])+"     "+ str(down_list[5]), (20, 100), cv2.FONT_HERSHEY_SIMPLEX, font_size, font_color, font_thickness)
+            cv2.putText(im0, "Truck:      "+str(up_list[7])+"     "+ str(down_list[7]), (20, 120), cv2.FONT_HERSHEY_SIMPLEX, font_size, font_color, font_thickness)
+
 
             # Save results (image with detections)
             if save_vid:
