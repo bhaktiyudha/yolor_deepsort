@@ -16,10 +16,22 @@ import pycuda.driver as cuda
 import tensorrt as trt
 import torch
 import torchvision
+from deep_sort_pytorch.utils.parser import get_config
+from deep_sort_pytorch.deep_sort import DeepSort
+from yolor.utils.google_utils import attempt_download
+from yolor.utils.general import scale_coords, xyxy2xywh
 
 CONF_THRESH = 0.5
 IOU_THRESHOLD = 0.4
 
+def compute_color_for_id(label):
+    """
+    Simple function that adds fixed color depending on the id
+    """
+    palette = (2 ** 11 - 1, 2 ** 15 - 1, 2 ** 20 - 1)
+
+    color = [int((p * (label ** 2 - label + 1)) % 255) for p in palette]
+    return tuple(color)
 
 def plot_one_box(x, img, color=None, label=None, line_thickness=None):
     '''
@@ -117,7 +129,8 @@ class YoLov5TRT(object):
             input_image_path)
         # Copy input image to host buffer
         np.copyto(host_inputs[0], input_image.ravel())
-        start = time.time()
+        # start = time.time()
+        t1 = time_synchronized()
         # Transfer input data  to the GPU.
         cuda.memcpy_htod_async(cuda_inputs[0], host_inputs[0], stream)
         # Run inference.
@@ -126,7 +139,8 @@ class YoLov5TRT(object):
         cuda.memcpy_dtoh_async(host_outputs[0], cuda_outputs[0], stream)
         # Synchronize the stream
         stream.synchronize()
-        end = time.time()
+        # end = time.time()
+        t2 = time_synchronized()
         # Remove any context from the top of the context stack, deactivating it.
         self.cfx.pop()
         # Here we use the first row of output in that batch_size = 1
@@ -139,7 +153,43 @@ class YoLov5TRT(object):
             box = result_boxes[i]
             plot_one_box(box, image_raw, label="{}:{:.2f}".format(
                 categories[int(result_classid[i])], result_scores[i]))
-        return image_raw, end - start
+        s = ''
+        if result_boxes is not None and len(result_boxes):
+                # Rescale boxes from img_size to image_raw size
+                result_boxes[:, :4] = scale_coords(
+                    img.shape[2:], result_boxes[:, :4], image_raw.shape).round()
+
+                # Print results
+                for c in result_boxes[:, -1].unique():
+                    n = (result_boxes[:, -1] == c).sum()  # detections per class
+                    s += '%g %ss, ' % (n, categories[int(c)])  # add to string
+
+                xywhs = xyxy2xywh(result_boxes[:, 0:4])
+                confs = result_boxes[:, 4]
+                clss = result_boxes[:, 5]
+
+                # pass detections to deepsort
+                outputs = deepsort.update(xywhs.cpu(), confs.cpu(), clss, image_raw)
+                
+                # draw boxes for visualization
+                if len(outputs) > 0:
+                    for j, (output, conf) in enumerate(zip(outputs, confs)): 
+                        
+                        bboxes = output[0:4]
+                        id = output[4]
+                        cls = output[5]
+
+                        c = int(cls)  # integer class
+                        label = f'{id} {categories[c]} {conf:.2f}'
+                        color = compute_color_for_id(id)
+                        plot_one_box(bboxes, image_raw, label=label, color=color, line_thickness=1)
+                        
+                        # print FPS
+                        cv2.putText(image_raw, "FPS="+str(int(1/(t2-t1))), (0,25), cv2.FONT_HERSHEY_COMPLEX, 1, (0,0,255), 2)
+        else:
+            deepsort.increment_ages()
+        print('%sDone. (%.3fs)' % (s, t2 - t1))
+        return image_raw
 
     def destory(self):
         # Remove any context from the top of the context stack, deactivating it.
@@ -290,6 +340,16 @@ if __name__ == '__main__':
 
     # a  YoLov5TRT instance
     yolov5_wrapper = YoLov5TRT(engine_file_path)
+    # initialize deepsort
+    cfg = get_config()
+    cfg.merge_from_file('deep_sort_pytorch/configs/deep_sort.yaml')
+    attempt_download('deep_sort_pytorch/deep_sort/deep/checkpoint/ckpt.t7')
+    deepsort = DeepSort(cfg.DEEPSORT.REID_CKPT,
+                        max_dist=cfg.DEEPSORT.MAX_DIST, min_confidence=cfg.DEEPSORT.MIN_CONFIDENCE,
+                        nms_max_overlap=cfg.DEEPSORT.NMS_MAX_OVERLAP, max_iou_distance=cfg.DEEPSORT.MAX_IOU_DISTANCE,
+                        max_age=cfg.DEEPSORT.MAX_AGE, n_init=cfg.DEEPSORT.N_INIT, nn_budget=cfg.DEEPSORT.NN_BUDGET,
+                        use_cuda=True)
+    # Save Video to File                    
     filename = "./video/test.mp4"
     video = cv2.VideoCapture(filename)
     fps = 0.0
