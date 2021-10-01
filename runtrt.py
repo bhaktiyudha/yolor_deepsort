@@ -8,6 +8,7 @@ import random
 import sys
 import threading
 import time
+sys.path.insert(0, './yolor')
 
 import cv2
 import numpy as np
@@ -129,8 +130,8 @@ class YoLov5TRT(object):
             input_image_path)
         # Copy input image to host buffer
         np.copyto(host_inputs[0], input_image.ravel())
-        # start = time.time()
-        t1 = time_synchronized()
+        start = time.time()
+        # t1 = time_synchronized()
         # Transfer input data  to the GPU.
         cuda.memcpy_htod_async(cuda_inputs[0], host_inputs[0], stream)
         # Run inference.
@@ -139,8 +140,8 @@ class YoLov5TRT(object):
         cuda.memcpy_dtoh_async(host_outputs[0], cuda_outputs[0], stream)
         # Synchronize the stream
         stream.synchronize()
-        # end = time.time()
-        t2 = time_synchronized()
+        end = time.time()
+        # t2 = time_synchronized()
         # Remove any context from the top of the context stack, deactivating it.
         self.cfx.pop()
         # Here we use the first row of output in that batch_size = 1
@@ -188,7 +189,7 @@ class YoLov5TRT(object):
                         cv2.putText(image_raw, "FPS="+str(int(1/(t2-t1))), (0,25), cv2.FONT_HERSHEY_COMPLEX, 1, (0,0,255), 2)
         else:
             deepsort.increment_ages()
-        print('%sDone. (%.3fs)' % (s, t2 - t1))
+        print('input->%s, time->{:.2f}ms, saving into output/'.format(s, (end-start) * 1000))
         return image_raw
 
     def destory(self):
