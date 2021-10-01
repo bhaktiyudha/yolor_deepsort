@@ -22,7 +22,7 @@ import torch.backends.cudnn as cudnn
 font_thickness = 1
 font_size = 0.5
 font_color = (0, 0, 255)
-middle_line_position = 225   
+middle_line_position = 500   
 up_line_position = middle_line_position - 15
 down_line_position = middle_line_position + 15
 # List for store vehicle count information
@@ -227,9 +227,9 @@ def detect(opt):
                 if cv2.waitKey(1) == ord('q'):  # q to quit
                     raise StopIteration
             # ih, iw, channels = img.shape
-            cv2.line(im0, (0, middle_line_position), (800, middle_line_position), (255, 0, 255), 2)
-            cv2.line(im0, (0, up_line_position), (800, up_line_position), (0, 0, 255), 2)
-            cv2.line(im0, (0, down_line_position), (800, down_line_position), (0, 0, 255), 2)
+            cv2.line(im0, (0, middle_line_position), (1280, middle_line_position), (255, 0, 255), 2)
+            cv2.line(im0, (0, up_line_position), (1280, up_line_position), (0, 0, 255), 2)
+            cv2.line(im0, (0, down_line_position), (1280, down_line_position), (0, 0, 255), 2)
 
             # Draw counting texts in the frame
             cv2.putText(im0, "Up", (110, 40), cv2.FONT_HERSHEY_SIMPLEX, font_size, font_color, font_thickness)
